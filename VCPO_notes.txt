@@ -1,0 +1,40 @@
+Variational Continual Policy Optimization VCPO
+Starting from GRPO - Deep Seek Paper - 
+- Parameter space VI - Closer to what Deep Seek actually does. 
+    - takes the KL divergence between the distributions of the parameters
+    - do LA on a pretrained model.
+    - Use Pretrained model with LA as our starting prior
+    - Starting model (prior)
+        - Then series of updates
+    - then make the new model the prior for a next series of updates
+    
+- Function space VI where instead takes the KL divergence between the distributions of the outputs of the functions
+    - 
+
+- Used model extraction technique
+
+- Look at bayesian class overleaf Intro to Bayesian Reinforcement Learning
+- Read Policy Gradient Methods
+
+Questions?
+- How to make this method compute and memory efficient?
+- Naive Bayes Method as opposed to other
+- Might have a very high variance estimator
+
+Using these repositories:
+- SethHWeidman/odsc_east_2025_grpo_llama: This is your reinforcement learning engine. It provides a standard, working implementation of GRPO on a LLaMA model.adamxyang/
+- Second Dataset: https://www.oumi.ai/docs/en/latest/api/oumi.datasets.grpo.html
+
+- laplace-lora: This is your Bayesian engine. It provides the implementation for the Laplace Approximation (LA) on LoRA matrices, which your paper uses to initialize the Gaussian prior $q_0(\theta)$.  
+    - Might need a supervised training set for the Ollama, potentially from here:
+    https://github.com/mlabonne/llm-datasets
+_______________________________--
+
+Orienting your Research as a Talk
+- Padnet as an effective defense against existing attacks.
+- But showing the graphs
+- Leveling the Playing Field
+    - Then pivot to our adaptive attacks
+
+
+Get normal LoRA up and running for classical LoRA, use as baseline then make edits using the guide of the paper
