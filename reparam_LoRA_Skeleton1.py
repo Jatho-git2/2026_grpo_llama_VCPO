@@ -44,6 +44,54 @@ class BayesianLoraLinear(nn.Module, LoraLayer):
         rho = torch.log(torch.expm1(torch.sqrt(var)) + 1e-20)
         return rho
 
+    # def update_layer(self, adapter_name: str, r: int, lora_alpha: int, config: peft.LoraConfig, **kwargs):
+    #     """Called automatically by PEFT to populate or modify adapter components."""
+    #     if r <= 0:
+    #         raise ValueError(f"r must be a positive integer, got {r}")
+            
+    #     self.r[adapter_name] = r
+    #     self.lora_alpha[adapter_name] = lora_alpha
+    #     # Ensure that the LoRA dropout is applied only if specified
+    #     lora_dropout = config.lora_dropout
+    #     if lora_dropout > 0.0:
+    #         lora_dropout_layer = nn.Dropout(p=lora_dropout)
+    #     else:
+    #         lora_dropout_layer  = nn.Identity()
+
+    #     self.lora_dropout.update(nn.ModuleDict({adapter_name: lora_dropout_layer}))
+
+    #     self.scaling[adapter_name] = lora_alpha / r
+        
+    #     # Low-rank decomposition using Bayesian Reparameterization Layers
+    #     # lora_A maps: in_features -> rank (r)
+
+    #     self.lora_A[adapter_name] = LinearReparameterization(
+    #         in_features=self.in_features,
+    #         out_features=r,
+    #         bias=False,
+    #         prior_mean = structured_prior_dict[(self.base_layer.name +".lora_A.default.weight")].mean,
+    #         prior_variance = structured_prior_dict[(self.base_layer.name +".lora_A.default.weight")].variance,
+    #         posterior_mu_init = structured_prior_dict[(self.base_layer.name +".lora_A.default.weight")].mean,
+    #         posterior_rho_init = get_rho(structured_prior_dict[(self.base_layer.name +".lora_A.default.weight")].variance)
+    #     )
+
+    #     # lora_B maps: rank (r) -> out_features
+    #     self.lora_B[adapter_name] = LinearReparameterization(
+    #         in_features=r,
+    #         out_features=self.out_features,
+    #         bias=False,
+    #         prior_mean = structured_prior_dict[(self.base_layer.name +".lora_B.default.weight")].mean,
+    #         prior_variance = structured_prior_dict[(self.base_layer.name +".lora_B.default.weight")].variance,
+    #         posterior_mu_init = structured_prior_dict[(self.base_layer.name +".lora_B.default.weight")].mean,
+    #         posterior_rho_init = get_rho(structured_prior_dict[(self.base_layer.name +".lora_B.default.weight")].variance)   
+    #     )
+        
+    #     # Ensure base layer weights remain strictly frozen
+    #     self.base_layer.weight.requires_grad = False
+
+    # We can initialize with safe dummy values and follow up after to replace them in the next
+    # cell of the notebook looping through the model which now has its layer names (does not 
+    # during the initialization phase.)
     def update_layer(self, adapter_name: str, r: int, lora_alpha: int, config: peft.LoraConfig, **kwargs):
         """Called automatically by PEFT to populate or modify adapter components."""
         if r <= 0:
@@ -69,10 +117,10 @@ class BayesianLoraLinear(nn.Module, LoraLayer):
             in_features=self.in_features,
             out_features=r,
             bias=False,
-            prior_mean = structured_prior_dict[(self.base_layer.name +".lora_A.default.weight")].mean,
-            prior_variance = structured_prior_dict[(self.base_layer.name +".lora_A.default.weight")].variance,
-            posterior_mu_init = structured_prior_dict[(self.base_layer.name +".lora_A.default.weight")].mean,
-            posterior_rho_init = get_rho(structured_prior_dict[(self.base_layer.name +".lora_A.default.weight")].variance)
+            prior_mean = 0.0,
+            prior_variance=1.0
+            posterior_mu_init=0.0,
+            posterior_rho_init=0.0
         )
 
         # lora_B maps: rank (r) -> out_features
@@ -80,14 +128,15 @@ class BayesianLoraLinear(nn.Module, LoraLayer):
             in_features=r,
             out_features=self.out_features,
             bias=False,
-            prior_mean = structured_prior_dict[(self.base_layer.name +".lora_B.default.weight")].mean,
-            prior_variance = structured_prior_dict[(self.base_layer.name +".lora_B.default.weight")].variance,
-            posterior_mu_init = structured_prior_dict[(self.base_layer.name +".lora_B.default.weight")].mean,
-            posterior_rho_init = get_rho(structured_prior_dict[(self.base_layer.name +".lora_B.default.weight")].variance)   
+            prior_mean = 0.0,
+            prior_variance=1.0
+            posterior_mu_init=0.0,
+            posterior_rho_init=0.0   
         )
         
         # Ensure base layer weights remain strictly frozen
         self.base_layer.weight.requires_grad = False
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Computes deterministic frozen base path combined with stochastic LoRA path."""
