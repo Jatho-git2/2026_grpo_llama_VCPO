@@ -53,11 +53,13 @@ class LinearReparameterization(BaseVariationalLayer_):
     def __init__(self,
                  in_features,
                  out_features,
-                 prior_mean=0,
-                 prior_variance=1,
-                 posterior_mu_init=0,
+                 prior_mean=0.0,
+                 prior_variance=1.0,
+                 posterior_mu_init=0.0,
                  posterior_rho_init=-3.0,
-                 mc=True):
+                 mc=True,
+                 dtype = torch.float16
+                 ):
         """
         Implements Linear layer with reparameterization trick.
 
@@ -69,7 +71,7 @@ class LinearReparameterization(BaseVariationalLayer_):
             prior_mean: float -> mean of the prior arbitrary distribution to be used on the complexity cost,
             prior_variance: float -> variance of the prior arbitrary distribution to be used on the complexity cost,
             posterior_mu_init: float -> init trainable mu parameter representing mean of the approximate posterior,
-            posterior_rho_init: float -> init trainable rho parameter representing the sigma of the approximate posterior through softplus function
+            posterior_rho_init: float -> init trainable rho parameter representing the sigma of the approximate posterior through softplus function,
             mc: bool -> whether to use Monte Carlo sampling for the forward pass (default: True)
         """
         super(LinearReparameterization, self).__init__()
@@ -78,30 +80,31 @@ class LinearReparameterization(BaseVariationalLayer_):
         self.out_features = out_features
         self.prior_mean = prior_mean
         self.prior_variance = prior_variance
-        self.posterior_mu_init = posterior_mu_init,  # mean of weight
+        self.posterior_mu_init = posterior_mu_init  # mean of weight
         # variance of weight --> sigma = log (1 + exp(rho))
-        self.posterior_rho_init = posterior_rho_init,
+        self.posterior_rho_init = posterior_rho_init
         self.mc = mc
+        self.dtype=dtype
 
-        self.mu_weight = Parameter(torch.Tensor(out_features, in_features))
-        self.rho_weight = Parameter(torch.Tensor(out_features, in_features))
+        self.mu_weight = Parameter(torch.zeros(out_features, in_features, dtype=self.dtype))
+        self.rho_weight = Parameter(torch.zeros(out_features, in_features, dtype=self.dtype))
         self.register_buffer('prior_weight_mu',
-                             torch.Tensor(out_features, in_features),
+                             torch.zeros(out_features, in_features, dtype=self.dtype),
                              persistent=False)
         self.register_buffer('prior_weight_sigma',
-                             torch.Tensor(out_features, in_features),
+                             torch.zeros(out_features, in_features, dtype=self.dtype),
                              persistent=False)
 
         self.init_parameters()
     
-
+    # cast all below at dtype torch.bfloat16
     def init_parameters(self):
         with torch.no_grad():
-            self.prior_weight_mu.copy_(self.prior_mean)
-            self.prior_weight_sigma.copy_(self.prior_variance)
+            self.prior_weight_mu.fill_(self.prior_mean)
+            self.prior_weight_sigma.fill_(math.sqrt(self.prior_variance))
 
-            self.mu_weight.copy_(self.posterior_mu_init)
-            self.rho_weight.copy_(self.posterior_rho_init)
+            self.mu_weight.fill_(self.posterior_mu_init)
+            self.rho_weight.fill_(self.posterior_rho_init)
 
     def kl_loss(self):
         sigma_weight = torch.log1p(torch.exp(self.rho_weight))
