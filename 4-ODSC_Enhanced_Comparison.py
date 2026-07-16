@@ -1,6 +1,7 @@
 import os
 import json
 from collections import Counter
+import matplotlib.pyplot as plt
 
 # ==============================================================================
 # CONFIGURATION
@@ -14,6 +15,10 @@ FINETUNED_PREFIX = ""
 
 # The specific question index you want to inspect side-by-side (matches IND = 70 from NB4)
 COMPARISON_INDEX = 70 
+
+# Adding path to where GRPO training saved state
+
+GRPO_STATE_PATH = "data/2-Training/checkpoint-2500/trainer_state.json"
 
 # ==============================================================================
 # HELPER FUNCTIONS
@@ -104,22 +109,74 @@ def display_record_comparison(baseline_records, finetuned_records, target_index)
     else:
         print(f"\nWarning: Could not find index {target_index} in Fine-Tuned records.")
 
+
+def plot_loss_comparison(grpo_state_path: str, baseline_loss_val: float = None, save_path: str = "loss_comparison.png"):
+    """
+    Extracts loss data from the Hugging Face trainer_state.json and plots it.
+    Optionally plots a horizontal baseline deterministic loss for comparison.
+    """
+    if not os.path.exists(grpo_state_path):
+        print(f"\nWarning: Cannot find {grpo_state_path} to plot loss.")
+        return
+
+    with open(grpo_state_path, "r") as f:
+        state_data = json.load(f)
+
+    steps = []
+    losses = []
+    
+    # Filter the log_history for entries that specifically contain the loss metric
+    for entry in state_data.get("log_history", []):
+        if "loss" in entry and "step" in entry:
+            steps.append(entry["step"])
+            losses.append(entry["loss"])
+
+    if not steps:
+        print("\nWarning: No loss data found in the provided state file.")
+        return
+
+    # Create the graph
+    plt.figure(figsize=(10, 6))
+    plt.plot(steps, losses, marker='o', linestyle='-', label="GRPO Training Loss", color="#1f77b4")
+
+    # If you have a static baseline deterministic loss, plot it as a reference line
+    if baseline_loss_val is not None:
+        plt.axhline(y=baseline_loss_val, color="#d62728", linestyle='--', linewidth=2, 
+                    label=f"Baseline Loss ({baseline_loss_val})")
+
+    plt.title("Model Training Loss over Time", fontsize=14, pad=15)
+    plt.xlabel("Training Steps", fontsize=12)
+    plt.ylabel("Loss", fontsize=12)
+    plt.legend(fontsize=10)
+    plt.grid(True, linestyle=':', alpha=0.6)
+    
+    # Save the plot locally
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    print(f"\nSuccessfully generated and saved loss comparison graph to '{save_path}'")
+
 # ==============================================================================
 # MAIN EXECUTION
 # ==============================================================================
 def main():
-    print("Loading Baseline records...")
-    baseline_data = load_evaluation_records(RES_DIR1)
+    #print("Loading Baseline records...")
+    #baseline_data = load_evaluation_records(RES_DIR1)
     
     print("Loading Fine-Tuned records...")
     finetuned_data = load_evaluation_records(RES_DIR2)
     
     print("\n" + "=" * 50)
-    calculate_metrics(baseline_data, "BASELINE MODEL")
+    #calculate_metrics(baseline_data, "BASELINE MODEL")
     calculate_metrics(finetuned_data, "FINE-TUNED MODEL")
+
+    #plot_loss_comparison(
+    #    grpo_state_path=GRPO_STATE_PATH, 
+    #    baseline_loss_val=0.100,  
+    #    save_path="grpo_vs_baseline_loss-batch12-2500.png"
+    #)
     
-    display_record_comparison(baseline_data, finetuned_data, COMPARISON_INDEX)
-    print("Check update2.")
+    #display_record_comparison(baseline_data, finetuned_data, COMPARISON_INDEX)
+    #print("Check update2.")
 
 if __name__ == "__main__":
     main()
